@@ -15,6 +15,7 @@ Uso:
 
     result = run_diagnosis(IncidentRequest(description="..."))
 """
+
 import json
 import os
 from typing import TypedDict
@@ -101,7 +102,8 @@ def _build_diagnosis_prompt(state: CopilotState) -> str:
         f"\nOutras fontes candidatas, menos relevantes, cujo conteudo NAO foi "
         f"incluido aqui (ignore-as a menos que o documento acima claramente nao "
         f"corresponda ao incidente): {', '.join(other_sources)}\n"
-        if other_sources else ""
+        if other_sources
+        else ""
     )
 
     connector_block = ""
@@ -113,7 +115,8 @@ def _build_diagnosis_prompt(state: CopilotState) -> str:
             "erro especifico conhecido. A menos que a descricao textual do "
             "incidente, por si so, bata claramente com o documento de contexto, "
             "use confidence baixa (< 0.4) e considere matched_source como null."
-            if data.is_fallback else ""
+            if data.is_fallback
+            else ""
         )
         connector_block = f"""
 Dados coletados diretamente do sistema SAP (via conector {data.source_system}{' - SIMULADO/MOCK' if data.is_mock else ''}):
@@ -183,8 +186,7 @@ def diagnose_node(state: CopilotState) -> CopilotState:
 
     if raw.startswith("```"):
         raw = raw.strip("`")
-        if raw.startswith("json"):
-            raw = raw[4:]
+        raw = raw.removeprefix("json")
         raw = raw.strip()
 
     try:
@@ -214,13 +216,12 @@ def diagnose_node(state: CopilotState) -> CopilotState:
 @observe(name="report")
 def report_node(state: CopilotState) -> CopilotState:
     diagnosis = state.get("diagnosis", {})
-    sources = ", ".join(
-        sorted({h["source"] for h in state.get("retrieved_context", [])})
-    ) or "nenhuma fonte relevante encontrada"
-
-    next_steps_md = "\n".join(
-        f"- {step}" for step in diagnosis.get("next_steps", [])
+    sources = (
+        ", ".join(sorted({h["source"] for h in state.get("retrieved_context", [])}))
+        or "nenhuma fonte relevante encontrada"
     )
+
+    next_steps_md = "\n".join(f"- {step}" for step in diagnosis.get("next_steps", []))
 
     matched = diagnosis.get("matched_source") or "nenhum documento especifico identificado"
 
@@ -306,10 +307,16 @@ if __name__ == "__main__":
     parser.add_argument("description", nargs="*", default=[])
     parser.add_argument("--interface", choices=["odata", "rfc"], default=None)
     parser.add_argument("--id", dest="identifier", default=None)
-    parser.add_argument("--debug", action="store_true", help="Mostra o prompt exato enviado ao LLM e a resposta bruta")
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Mostra o prompt exato enviado ao LLM e a resposta bruta",
+    )
     args = parser.parse_args()
 
-    description = " ".join(args.description) or "iFlow falhando com HTTP 401 ao chamar endpoint externo"
+    description = (
+        " ".join(args.description) or "iFlow falhando com HTTP 401 ao chamar endpoint externo"
+    )
     request = IncidentRequest(
         description=description,
         interface_type=args.interface,

@@ -12,19 +12,21 @@ Uso:
     uv run python -m app.rag.ingest --target reference --exclude "PDF Sessions" --exclude "_Downloaded Books"
     uv run python -m app.rag.ingest --target reference --reset   # ignora estado e reprocessa tudo
 """
+
 import argparse
 import json
 from pathlib import Path
 from uuid import uuid4
 
-from langchain_text_splitters import MarkdownTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_ollama import OllamaEmbeddings
+from langchain_text_splitters import MarkdownTextSplitter
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, PointStruct, VectorParams
 
-BASE_DIR = Path(__file__).resolve().parents[2]
 from app.config import settings
+
+BASE_DIR = Path(__file__).resolve().parents[2]
 
 EMBEDDING_MODEL = settings.embedding_model
 QDRANT_URL = settings.qdrant_url
@@ -75,7 +77,9 @@ def load_state(state_file: Path) -> set[str]:
 
 def save_state(state_file: Path, processed: set[str]) -> None:
     state_file.parent.mkdir(parents=True, exist_ok=True)
-    state_file.write_text(json.dumps(sorted(processed), ensure_ascii=False, indent=2), encoding="utf-8")
+    state_file.write_text(
+        json.dumps(sorted(processed), ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
 
 def extract_text(path: Path) -> str:
@@ -128,7 +132,9 @@ def run_ingest(target: str, limit: int | None, excludes: list[str], reset: bool)
         return
 
     embeddings = OllamaEmbeddings(model=EMBEDDING_MODEL)
-    splitter = MarkdownTextSplitter(chunk_size=cfg["chunk_size"], chunk_overlap=cfg["chunk_overlap"])
+    splitter = MarkdownTextSplitter(
+        chunk_size=cfg["chunk_size"], chunk_overlap=cfg["chunk_overlap"]
+    )
     client = QdrantClient(url=QDRANT_URL)
 
     for idx, path in enumerate(pending, start=1):
@@ -138,7 +144,7 @@ def run_ingest(target: str, limit: int | None, excludes: list[str], reset: bool)
             text = extract_text(path)
             chunks = splitter.split_text(text)
             if not chunks:
-                print(f"    [aviso] nenhum texto extraido, pulando")
+                print("    [aviso] nenhum texto extraido, pulando")
             else:
                 embed_and_upsert(client, cfg["collection"], embeddings, chunks, str(rel))
                 print(f"    {len(chunks)} chunk(s) indexados")
@@ -155,9 +161,21 @@ def run_ingest(target: str, limit: int | None, excludes: list[str], reset: bool)
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--target", choices=["incidents", "reference", "all"], default="incidents")
-    parser.add_argument("--limit", type=int, default=None, help="Processar so os N primeiros arquivos pendentes (teste)")
-    parser.add_argument("--exclude", action="append", default=[], help="Substring de caminho a excluir (pode repetir)")
-    parser.add_argument("--reset", action="store_true", help="Ignora estado salvo e reprocessa tudo")
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Processar so os N primeiros arquivos pendentes (teste)",
+    )
+    parser.add_argument(
+        "--exclude",
+        action="append",
+        default=[],
+        help="Substring de caminho a excluir (pode repetir)",
+    )
+    parser.add_argument(
+        "--reset", action="store_true", help="Ignora estado salvo e reprocessa tudo"
+    )
     args = parser.parse_args()
 
     targets = ["incidents", "reference"] if args.target == "all" else [args.target]

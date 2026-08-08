@@ -4,6 +4,7 @@ Substituir por implementacao real: usar `requests`/`httpx` contra o
 endpoint OData real (SAP Gateway ou Integration Suite), com
 autenticacao via Security Material/OAuth2.
 """
+
 from app.connectors.base import ConnectorResult, SAPConnector
 
 _MOCK_SCENARIOS: dict[str, ConnectorResult] = {
@@ -14,8 +15,8 @@ _MOCK_SCENARIOS: dict[str, ConnectorResult] = {
         message="Unauthorized ao chamar endpoint externo via iFlow CPI",
         raw=(
             "HTTP/1.1 401 Unauthorized\n"
-            "WWW-Authenticate: Bearer error=\"invalid_token\"\n"
-            "{\"error\": \"invalid_token\", \"error_description\": \"Access token expired\"}"
+            'WWW-Authenticate: Bearer error="invalid_token"\n'
+            '{"error": "invalid_token", "error_description": "Access token expired"}'
         ),
     ),
     "CPI-TIMEOUT-DEMO": ConnectorResult(

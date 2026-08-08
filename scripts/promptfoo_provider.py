@@ -12,14 +12,15 @@ com o resultado, para o promptfoo avaliar via asserts.
 
 IMPORTANTE: nao imprimir nada alem do JSON final no stdout.
 """
+
 import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.agent import graph as graph_module  # noqa: E402
-from app.models import IncidentRequest  # noqa: E402
+from app.agent import graph as graph_module
+from app.models import IncidentRequest
 
 
 def main() -> None:

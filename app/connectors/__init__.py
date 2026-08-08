@@ -1,4 +1,5 @@
 """Factory de conectores SAP."""
+
 from app.connectors.base import ConnectorResult, SAPConnector
 from app.connectors.odata_connector import ODataConnector
 from app.connectors.rfc_connector import RFCConnector
@@ -16,4 +17,4 @@ def get_connector(interface_type: str) -> SAPConnector:
     return cls()
 
 
-__all__ = ["ConnectorResult", "SAPConnector", "ODataConnector", "RFCConnector", "get_connector"]
+__all__ = ["ConnectorResult", "ODataConnector", "RFCConnector", "SAPConnector", "get_connector"]

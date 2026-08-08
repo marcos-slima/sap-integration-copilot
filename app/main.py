@@ -5,8 +5,8 @@ interface_type/identifier para acionar um conector), orquestra o
 diagnostico (conector + RAG + agente via LangGraph) e retorna causa
 raiz sugerida, proximos passos e relatorio em Markdown.
 """
-from fastapi import FastAPI
 
+from fastapi import FastAPI
 from langfuse import get_client
 
 from app.agent.graph import run_diagnosis

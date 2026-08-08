@@ -1,6 +1,7 @@
 """Testes de integracao do retriever RAG - precisam de Qdrant vivo
 com a collection sap_incident_docs ja indexada (ver README/manual).
 """
+
 import pytest
 
 from app.rag.retriever import retrieve
@@ -22,7 +23,6 @@ def test_retriever_finds_correct_document(query, expected_source, min_score):
 
     top = hits[0]
     assert top["source"] == expected_source, (
-        f"Esperado '{expected_source}' como top-1 para '{query}', "
-        f"veio '{top['source']}'"
+        f"Esperado '{expected_source}' como top-1 para '{query}', " f"veio '{top['source']}'"
     )
     assert top["score"] >= min_score

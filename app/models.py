@@ -1,4 +1,5 @@
 """Modelos Pydantic do SAP Integration Copilot."""
+
 from typing import Literal
 
 from pydantic import BaseModel

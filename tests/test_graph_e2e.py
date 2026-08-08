@@ -8,6 +8,7 @@ Formaliza os 7 cenarios validados manualmente durante o
 desenvolvimento, incluindo o caso de seguranca do identificador
 desconhecido (nao deve alucinar um diagnostico especifico).
 """
+
 import pytest
 
 from app.agent.graph import run_diagnosis
@@ -61,6 +62,5 @@ def test_unknown_identifier_does_not_hallucinate_specific_diagnosis():
     result = run_diagnosis(request)
 
     assert result.confidence < 0.6, (
-        "Identificador desconhecido nao deveria gerar alta confianca "
-        f"(veio {result.confidence})"
+        "Identificador desconhecido nao deveria gerar alta confianca " f"(veio {result.confidence})"
     )

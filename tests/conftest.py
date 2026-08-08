@@ -6,6 +6,7 @@ nao estiver acessivel - isso evita falsos negativos em uma maquina
 sem o ambiente de IA local rodando, e evita que o CI quebre por falta
 de infraestrutura que so existe localmente.
 """
+
 import socket
 
 import pytest

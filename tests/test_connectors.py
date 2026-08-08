@@ -1,6 +1,7 @@
 """Testes unitarios dos conectores SAP mock - sem dependencias
 externas, rodam em qualquer maquina, sem precisar da stack no ar.
 """
+
 from app.connectors import get_connector
 from app.connectors.odata_connector import ODataConnector
 from app.connectors.rfc_connector import RFCConnector

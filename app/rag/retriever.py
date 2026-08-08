@@ -4,6 +4,7 @@ Duas collections independentes:
   sap_incident_docs      -> usada pelo fluxo de diagnostico do Copilot
   sap_reference_library  -> usada so para estudo/consulta pessoal
 """
+
 from langchain_ollama import OllamaEmbeddings
 from qdrant_client import QdrantClient
 

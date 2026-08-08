@@ -12,6 +12,7 @@ Isso imprime a configuracao efetiva (valores do .env + defaults),
 mascarando senhas/chaves - util pra depurar "por que esta apontando
 pro lugar errado" sem depender de mais ninguem.
 """
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 

@@ -4,6 +4,7 @@ Substituir por implementacao real: usar `pyrfc` (SAP NetWeaver RFC
 SDK) para chamadas RFC reais, e leitura de status via BAPI de
 monitoramento de IDoc (ex: BAPI_IDOC_STATUS).
 """
+
 from app.connectors.base import ConnectorResult, SAPConnector
 
 _MOCK_SCENARIOS: dict[str, ConnectorResult] = {

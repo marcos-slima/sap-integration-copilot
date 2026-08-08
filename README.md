@@ -119,4 +119,3 @@ modelo de produção do grafo. Validado com a suíte completa de testes
 (16/16 `pytest`) após a troca. Trade-off aceito: tempo de inferência
 maior (~2min49s vs ~1min20s nos 16 testes) em troca de comportamento
 mais confiável sob incerteza.
-

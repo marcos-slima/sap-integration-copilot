@@ -43,7 +43,9 @@ build-backend = "hatchling.build"
 dev = [
     "debugpy>=1.8.21",
     "httpx>=0.28.1",
+    "pre-commit>=4.6.1",
     "pytest>=9.1.1",
+    "ruff>=0.16.1",
 ]
 
 [tool.pytest.ini_options]
