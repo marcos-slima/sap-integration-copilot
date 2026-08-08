@@ -1,0 +1,30 @@
+name: tests
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Instalar dependencias
+        run: uv sync
+
+      - name: Lint (ruff)
+        run: uv run ruff check .
+
+      - name: Rodar testes unitarios
+        # So os testes SEM @pytest.mark.integration - os de integracao
+        # precisam de Qdrant/Ollama locais, que nao existem no runner
+        # do GitHub. Isso testa conectores, contratos e regras de
+        # negocio puras, sem depender de infraestrutura externa.
+        run: uv run pytest tests/test_connectors.py -v

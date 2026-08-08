@@ -1,5 +1,8 @@
 # SAP Integration Copilot
 
+![tests](https://github.com/marcos-slima/sap-integration-copilot/actions/workflows/tests.yml/badge.svg)
+
+
 Assistente de IA para diagnóstico de incidentes de integração SAP.
 Recebe a descrição de um incidente, lê logs/payloads, consulta um
 catálogo de APIs/documentos via RAG, identifica o provável ponto de
