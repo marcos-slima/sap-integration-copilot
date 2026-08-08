@@ -122,3 +122,50 @@ modelo de produção do grafo. Validado com a suíte completa de testes
 (16/16 `pytest`) após a troca. Trade-off aceito: tempo de inferência
 maior (~2min49s vs ~1min20s nos 16 testes) em troca de comportamento
 mais confiável sob incerteza.
+
+### 5. Observabilidade real com Langfuse
+
+**Contexto:** o Langfuse estava configurado desde o início do
+projeto, mas sem nenhum código realmente enviando dados para lá —
+configuração presente, tracing ausente.
+
+**Implementado:** cada node do grafo (`connector`, `retrieve`,
+`diagnose`, `report`) é instrumentado com `@observe`, e a chamada ao
+LLM usa o `CallbackHandler` do LangChain — capturando tempo de
+execução, tokens e o payload completo de entrada/saída de cada etapa,
+visível em `http://localhost:3000`.
+
+**Bug encontrado e corrigido no processo:** em execuções via `pytest`
+(diferente do CLI), o SDK não fazia `flush()` automático antes do
+processo terminar — de 16 execuções de teste, só 8 traces chegavam ao
+Langfuse. Corrigido com uma fixture `autouse` no `conftest.py` que
+força o flush ao final da sessão de testes.
+
+### 6. Configuração centralizada (eliminando hardcoded)
+
+**Problema encontrado:** apesar de existir um `.env` desde o início
+do projeto, o código nunca o lia — URLs do Qdrant, modelo do LLM e
+outras configurações estavam fixas como constantes Python, espalhadas
+em múltiplos arquivos. Trocar de modelo exigia editar código-fonte
+(`sed` direto no arquivo), não mudar uma variável de ambiente.
+
+**Solução:** `app/config.py`, uma classe `Settings` (via
+`pydantic-settings`) como única fonte de verdade, lida do `.env`. Um
+comando (`uv run python -m app.config`) imprime a configuração
+efetiva a qualquer momento, com segredos mascarados — permite
+verificar o que está realmente configurado sem depender de leitura de
+código-fonte.
+
+### 7. Segurança e CI antes da publicação
+
+Antes de tornar o repositório público:
+
+- **`gitleaks`**: varredura de **todo o histórico do git** (não só o
+  estado atual) em busca de segredos vazados — confirmado limpo antes
+  do primeiro push
+- **`pre-commit`**: hooks automáticos (lint/format via `ruff`,
+  detecção de segredo, bloqueio de arquivo grande >5MB) rodando em
+  todo commit local, dali em diante
+- **GitHub Actions**: workflow de CI rodando lint + testes unitários
+  a cada push/PR — o badge de status no topo deste README reflete o
+  resultado real da última execução, não uma alegação

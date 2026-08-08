@@ -22,7 +22,7 @@
 |---|---|---|
 | Git | ✅ em uso | Controle de versão do código |
 | Ruff | ✅ já nas deps de dev | Lint + formatação Python, rápido |
-| **pre-commit** | ⬜ gap | Roda Ruff/testes automaticamente antes de cada commit — impede que código quebrado entre no histórico |
+| **pre-commit** | ✅ em uso | Roda Ruff/testes automaticamente antes de cada commit — impede que código quebrado entre no histórico |
 | **mypy** | ⬜ gap | Checagem de tipos estática — pega erros antes da execução, importante à medida que o grafo/conectores crescem |
 | **Conventional Commits** | ⬜ gap (prática, não ferramenta) | Padroniza mensagens de commit (`feat:`, `fix:`, `docs:` — você já está usando isso intuitivamente) — habilita changelog automático depois |
 
@@ -30,7 +30,7 @@
 
 | Ferramenta | Status | Propósito |
 |---|---|---|
-| **GitHub Actions** | ⬜ gap | Roda a suíte `pytest` automaticamente em cada push/PR — essencial ao publicar o repo publicamente, prova que os testes realmente passam, não só "no meu computador" |
+| **GitHub Actions** | ✅ em uso | Roda a suíte `pytest` automaticamente em cada push/PR — essencial ao publicar o repo publicamente, prova que os testes realmente passam, não só "no meu computador" |
 | **act** | ⬜ gap (opcional) | Testa workflows do GitHub Actions localmente antes de commitar, sem gastar minutos de CI |
 
 ## 4. Gestão de Segredos
@@ -38,7 +38,7 @@
 | Ferramenta | Status | Propósito |
 |---|---|---|
 | `.env` em texto puro | ⚠️ atual, frágil | Funciona local, mas não escala nem é seguro pra publicar |
-| **git-secrets** ou **gitleaks** | ⬜ gap | Escaneia commits para impedir que uma credencial vaze acidentalmente pro GitHub — crítico antes de tornar o repo público |
+| **git-secrets** ou **gitleaks** | ✅ em uso | Escaneia commits para impedir que uma credencial vaze acidentalmente pro GitHub — crítico antes de tornar o repo público |
 | **SOPS** (Mozilla) | ⬜ gap (se precisar versionar segredos) | Permite commitar segredos *criptografados* no git, decriptados só localmente — mais simples que Vault pra escala de projeto pessoal |
 | HashiCorp Vault | ⬜ não recomendado agora | Overkill pro tamanho atual do projeto; mencionar como conhecimento arquitetural, não implementar |
 
@@ -99,7 +99,9 @@
 
 ---
 
-## Priorização sugerida (o que realmente move a agulha primeiro)
+## Priorização sugerida
+
+> **Atualização:** os itens 1 (gitleaks), 2 (GitHub Actions) e 3 (pre-commit) desta lista já foram implementados e estão em produção no repositório — ver seção "Decisões de Arquitetura" do README para detalhes. (o que realmente move a agulha primeiro)
 
 1. **gitleaks** — antes de publicar qualquer coisa no GitHub, non-negociável
 2. **GitHub Actions** (rodar pytest em CI) — prova de qualidade pública
