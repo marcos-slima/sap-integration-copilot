@@ -1,0 +1,71 @@
+description: "Comparacao qwen3:30b-a3b vs qwen2.5-coder:32b no diagnostico do SAP Integration Copilot (pipeline real: conector + RAG + guardrails)"
+
+prompts:
+  - file://prompts/case.txt
+
+providers:
+  - id: "exec:uv run python3 scripts/promptfoo_provider.py qwen3:30b-a3b"
+    label: "qwen3:30b-a3b (atual)"
+  - id: "exec:uv run python3 scripts/promptfoo_provider.py qwen2.5-coder:32b"
+    label: "qwen2.5-coder:32b (candidato)"
+
+tests:
+  - description: "401 sem conector"
+    vars: { description: "iFlow falhando com erro 401", interface_type: "none", identifier: "none" }
+    assert:
+      - type: javascript
+        value: "JSON.parse(output).matched_source === 'cpi_http_401.md'"
+
+  - description: "401 com conector OData"
+    vars: { description: "investigar falha reportada no iFlow", interface_type: "odata", identifier: "CPI-401-DEMO" }
+    assert:
+      - type: javascript
+        value: "JSON.parse(output).matched_source === 'cpi_http_401.md' && JSON.parse(output).confidence >= 0.6"
+
+  - description: "IDoc 51 com conector RFC (caso que ja quebrou 2x manualmente)"
+    vars: { description: "IDoc travado", interface_type: "rfc", identifier: "RFC-IDOC-51-DEMO" }
+    assert:
+      - type: javascript
+        value: "JSON.parse(output).matched_source === 'idoc_status_51.md' && JSON.parse(output).confidence >= 0.6"
+
+  - description: "IDoc 51 com conector RFC - repeticao 2 (teste de estabilidade)"
+    vars: { description: "IDoc travado", interface_type: "rfc", identifier: "RFC-IDOC-51-DEMO" }
+    assert:
+      - type: javascript
+        value: "JSON.parse(output).matched_source === 'idoc_status_51.md' && JSON.parse(output).confidence >= 0.6"
+
+  - description: "IDoc 51 com conector RFC - repeticao 3 (teste de estabilidade)"
+    vars: { description: "IDoc travado", interface_type: "rfc", identifier: "RFC-IDOC-51-DEMO" }
+    assert:
+      - type: javascript
+        value: "JSON.parse(output).matched_source === 'idoc_status_51.md' && JSON.parse(output).confidence >= 0.6"
+
+  - description: "RFC connection refused com conector"
+    vars: { description: "SM59 não conecta", interface_type: "rfc", identifier: "RFC-CONN-REFUSED-DEMO" }
+    assert:
+      - type: javascript
+        value: "JSON.parse(output).matched_source === 'rfc_connection_refused.md' && JSON.parse(output).confidence >= 0.6"
+
+  - description: "OData timeout sem conector"
+    vars: { description: "iFlow travando ao consumir OData sem retorno", interface_type: "none", identifier: "none" }
+    assert:
+      - type: javascript
+        value: "JSON.parse(output).matched_source === 'odata_timeout_cpi.md'"
+
+  - description: "IDoc 51 sem conector"
+    vars: { description: "IDoc parado com status 51", interface_type: "none", identifier: "none" }
+    assert:
+      - type: javascript
+        value: "JSON.parse(output).matched_source === 'idoc_status_51.md'"
+
+  - description: "RFC connection refused sem conector"
+    vars: { description: "SM59 dando erro de conexão recusada", interface_type: "none", identifier: "none" }
+    assert:
+      - type: javascript
+        value: "JSON.parse(output).matched_source === 'rfc_connection_refused.md'"
+
+  - description: "Identificador desconhecido - guardrail de seguranca (nao deve ter alta confianca)"
+    vars: { description: "algo estranho aconteceu", interface_type: "odata", identifier: "XPTO-999-NAO-EXISTE" }
+    assert:
+      - type: javascript
+        value: "JSON.parse(output).confidence < 0.6"

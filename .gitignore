@@ -8,3 +8,8 @@ data/*.local
 *.egg-info/
 dist/
 build/
+data/reference_library/
+data/knowledge_base/
+data/.ingest_state_*.json
+.promptfoo/
+promptfoo-output*
