@@ -2,6 +2,8 @@
 
 ![tests](https://github.com/marcos-slima/sap-integration-copilot/actions/workflows/tests.yml/badge.svg)
 
+> 📋 Veja o [processo de desenvolvimento](docs/PROCESSO_DESENVOLVIMENTO.md) seguido neste projeto, fase por fase.
+
 
 Assistente de IA para diagnóstico de incidentes de integração SAP.
 Recebe a descrição de um incidente, lê logs/payloads, consulta um
