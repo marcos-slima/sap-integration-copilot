@@ -7,6 +7,8 @@ raiz sugerida, proximos passos e relatorio em Markdown.
 """
 from fastapi import FastAPI
 
+from langfuse import get_client
+
 from app.agent.graph import run_diagnosis
 from app.models import DiagnosisResponse, IncidentRequest
 
@@ -15,6 +17,11 @@ app = FastAPI(
     description="Assistente de IA para diagnostico de incidentes de integracao SAP",
     version="0.1.0",
 )
+
+
+@app.on_event("shutdown")
+def _flush_langfuse() -> None:
+    get_client().flush()
 
 
 @app.get("/health")

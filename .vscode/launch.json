@@ -1,0 +1,65 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug: graph.py (caso IDoc travado)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "app.agent.graph",
+      "args": ["IDoc travado", "--interface", "rfc", "--id", "RFC-IDOC-51-DEMO", "--debug"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Debug: graph.py (texto livre)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "app.agent.graph",
+      "args": ["${input:incidentDescription}", "--debug"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Debug: pytest (tudo)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["-v"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Debug: pytest (so unitarios, rapido)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["tests/test_connectors.py", "-v"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Debug: FastAPI (uvicorn)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["app.main:app", "--reload"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Ver configuracao efetiva (app.config)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "app.config",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ],
+  "inputs": [
+    {
+      "id": "incidentDescription",
+      "type": "promptString",
+      "description": "Descricao do incidente para debugar"
+    }
+  ]
+}

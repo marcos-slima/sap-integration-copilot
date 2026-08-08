@@ -18,6 +18,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "langchain-text-splitters>=1.1.2",
     "pypdf>=6.15.0",
+    "pydantic-settings>=2.14.2",
 ]
 
 [project.optional-dependencies]
@@ -40,6 +41,7 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
+    "debugpy>=1.8.21",
     "httpx>=0.28.1",
     "pytest>=9.1.1",
 ]

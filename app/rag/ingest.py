@@ -24,8 +24,10 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, PointStruct, VectorParams
 
 BASE_DIR = Path(__file__).resolve().parents[2]
-EMBEDDING_MODEL = "nomic-embed-text"
-QDRANT_URL = "http://127.0.0.1:6333"
+from app.config import settings
+
+EMBEDDING_MODEL = settings.embedding_model
+QDRANT_URL = settings.qdrant_url
 EMBED_BATCH_SIZE = 16  # chunks embedados/gravados por vez, por arquivo
 
 TARGETS = {

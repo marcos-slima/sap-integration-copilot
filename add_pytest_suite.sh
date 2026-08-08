@@ -75,6 +75,22 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if "integration" in item.keywords:
             item.add_marker(skip_marker)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _flush_langfuse_at_session_end():
+    """Garante que todos os traces gerados durante a sessao de testes
+    sejam enviados ao Langfuse antes do processo do pytest terminar -
+    sem isso, o SDK manda em lote em background e alguns traces podem
+    nao chegar a tempo (ja observado: 8 de 16 chegaram sem este fix).
+    """
+    yield
+    try:
+        from langfuse import get_client
+
+        get_client().flush()
+    except Exception:
+        pass  # nao falha a suite de testes por causa de telemetria
 CONFTESTEOF
 
 echo "=== 4/5 - Criando tests/test_connectors.py (unitario, rapido) ==="

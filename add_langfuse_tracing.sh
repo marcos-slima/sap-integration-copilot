@@ -1,3 +1,27 @@
+#!/usr/bin/env bash
+# ============================================================
+# Instrumenta o grafo com tracing Langfuse:
+#  - CallbackHandler do LangChain plugado na chamada ao LLM
+#  - @observe em cada node (connector/retrieve/diagnose/report)
+#    e no run_diagnosis (trace raiz)
+#  - flush ao final do CLI (processo curto, precisa flush manual)
+#
+# Reescreve graph.py de forma consolidada (com tudo que ja foi
+# validado: conector antes do retrieve, contexto restrito ao
+# top-1, guardrail de fallback, seed fixo, debug flag).
+#
+# Uso: rodar dentro de ~/sap-integration-copilot
+#   bash add_langfuse_tracing.sh
+# ============================================================
+set -e
+
+if [ ! -f pyproject.toml ]; then
+  echo "ERRO: rode este script dentro de ~/sap-integration-copilot"
+  exit 1
+fi
+
+echo "=== 1/2 - Reescrevendo app/agent/graph.py com tracing Langfuse ==="
+cat > app/agent/graph.py << 'GRAPHEOF'
 """Grafo LangGraph do SAP Integration Copilot.
 
 Fluxo linear:
@@ -321,3 +345,46 @@ if __name__ == "__main__":
     # Processo curto (CLI) - precisa flush manual para garantir que o
     # trace chegue ao Langfuse antes do processo terminar.
     get_client().flush()
+GRAPHEOF
+
+echo "=== 2/2 - Adicionando flush do Langfuse no shutdown do FastAPI ==="
+python3 - << 'PYEOF'
+from pathlib import Path
+
+path = Path("app/main.py")
+text = path.read_text(encoding="utf-8")
+
+if "get_client" not in text:
+    text = text.replace(
+        "from app.agent.graph import run_diagnosis",
+        "from langfuse import get_client\n\nfrom app.agent.graph import run_diagnosis",
+    )
+    text = text.replace(
+        '@app.get("/health")',
+        '@app.on_event("shutdown")\n'
+        "def _flush_langfuse() -> None:\n"
+        "    get_client().flush()\n\n\n"
+        '@app.get("/health")',
+    )
+    path.write_text(text, encoding="utf-8")
+    print("app/main.py atualizado com flush no shutdown.")
+else:
+    print("app/main.py ja parece ter a instrumentacao, pulando.")
+PYEOF
+
+echo
+echo "============================================================"
+echo "Tracing Langfuse instrumentado."
+echo
+echo "Teste:"
+echo "  cd ~/sap-integration-copilot"
+echo "  uv run python -m app.agent.graph --interface rfc --id RFC-IDOC-51-DEMO \"IDoc travado\""
+echo
+echo "Depois abra http://localhost:3000 e veja o trace: deve aparecer"
+echo "'sap_copilot_diagnosis' como trace raiz, com 4 spans filhos"
+echo "(connector, retrieve, diagnose, report) e a geracao do LLM"
+echo "aninhada dentro de 'diagnose', com tokens/latencia visiveis."
+echo
+echo "Rode a suite pytest de novo para confirmar que nada quebrou:"
+echo "  uv run pytest -v"
+echo "============================================================"

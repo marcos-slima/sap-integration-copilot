@@ -7,8 +7,10 @@ Duas collections independentes:
 from langchain_ollama import OllamaEmbeddings
 from qdrant_client import QdrantClient
 
-EMBEDDING_MODEL = "nomic-embed-text"
-QDRANT_URL = "http://127.0.0.1:6333"
+from app.config import settings
+
+EMBEDDING_MODEL = settings.embedding_model
+QDRANT_URL = settings.qdrant_url
 
 COLLECTIONS = {
     "incidents": "sap_incident_docs",
