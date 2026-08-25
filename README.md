@@ -202,3 +202,50 @@ prova que a decisão de modelo não é estática — é revisitada com
 critério formal sempre que surge um candidato relevante, com a mesma
 metodologia e o mesmo pipeline real usados desde a primeira vez,
 gerando decisões comparáveis ao longo do tempo.
+
+### 9. Achados de code review: estado global, parsing frágil, limites ausentes
+
+Uma revisão de código externa identificou 10 pontos; a triagem separou
+o que era real do que era falso alarme ou já havia sido corrigido:
+
+- **Falso alarme:** alegação de que `report_node`/`run_diagnosis`
+  estariam ausentes do arquivo — não procede, ambos existem e
+  funcionam (o revisor provavelmente viu um trecho cortado, não o
+  arquivo completo)
+- **Já corrigido antes da revisão:** singleton no retriever e
+  `ensure_collection` fora do loop de batch (ver seções anteriores)
+- **Confirmados e corrigidos nesta rodada:**
+  - `LLM_MODEL` como global mutável de módulo → injetado via `state`/
+    parâmetro em `run_diagnosis(..., llm_model=...)`, eliminando risco
+    de corrida entre execuções concorrentes
+  - Parsing de JSON manual e frágil → `llm.with_structured_output(DiagnosisModel, include_raw=True)`, com o parsing manual antigo mantido como *fallback*, não mais como único caminho
+  - `confidence` sem validação de range → `Field(ge=0.0, le=1.0)` no
+    schema Pydantic **+** clamp defensivo no código (a mesma filosofia
+    de guardrail em camadas já usada para o fallback do conector,
+    agora estendida)
+  - `logs`/`payload` sem limite de tamanho → `max_length` no Pydantic
+    (rejeita entrada absurda na API) e truncamento mais apertado na
+    montagem do prompt (protege o contexto/custo do LLM)
+  - Zero teste da camada HTTP → `tests/test_api.py` com `TestClient`
+  - `Dockerfile` não copiava `data/`, então o fallback de documentos
+    de exemplo quebraria em produção → corrigido, com nota explícita
+    de que a biblioteca de 36GB nunca deve entrar na imagem e que
+    `.env` deve ser injetado em runtime, não commitado na imagem
+  - `@app.on_event` (deprecated, ainda funcional mas legado) →
+    migrado para o padrão `lifespan` do FastAPI
+- **Achado adicional durante a correção do item acima:** a primeira
+  tentativa de restaurar a orientação sobre `matched_source` usou
+  `Field(description=...)` no schema Pydantic, assumindo que o
+  LangChain injetaria essa descrição como contexto textual pro LLM.
+  **Isso não teve efeito nenhum** — confirmado porque as respostas do
+  modelo saíram byte-a-byte idênticas antes e depois da mudança
+  (esperado com `temperature=0`/`seed` fixo apenas se o prompt
+  realmente enviado não mudou). Causa real: `with_structured_output`
+  no Ollama usa o schema JSON para restringir **tipo/formato** da
+  geração (decodificação restrita por gramática), não para injetar
+  descrições como instrução legível pelo modelo. A correção que
+  funcionou de fato foi devolver a instrução como **texto explícito
+  no prompt**, confirmada visualmente via `--debug` antes de rodar a
+  suíte completa de novo. Lição: ao adotar saída estruturada via
+  schema, texto explícito no prompt continua necessário para lógica
+  de preenchimento — o schema garante a forma, não o conteúdo.

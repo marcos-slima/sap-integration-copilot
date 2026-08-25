@@ -214,6 +214,7 @@ tipada com `pydantic-settings`, lida uma vez a partir do `.env`:
 # app/config.py
 from pydantic_settings import BaseSettings
 
+
 class Settings(BaseSettings):
     qdrant_url: str = "http://127.0.0.1:6333"
     neo4j_uri: str = "bolt://127.0.0.1:7687"
@@ -225,6 +226,7 @@ class Settings(BaseSettings):
     embedding_model: str = "nomic-embed-text"
 
     model_config = {"env_file": ".env"}
+
 
 settings = Settings()
 ```

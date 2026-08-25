@@ -1,3 +1,26 @@
+#!/usr/bin/env bash
+# ============================================================
+# Corrige 2 bugs de producao encontrados em code review:
+#  1. ingest.py: ensure_collection() dentro do loop de batch
+#     (deveria rodar 1x por execucao, nao 1x por batch/arquivo);
+#     --reset nao deletava pontos antigos antes de reindexar,
+#     causando duplicata permanente (uuid4() sempre novo)
+#  2. retriever.py: QdrantClient/OllamaEmbeddings recriados a
+#     cada chamada (sem reuso de conexao); sem score_threshold,
+#     retornando resultados de baixa relevancia sem filtro
+#
+# Uso: rodar dentro de ~/sap-integration-copilot
+#   bash fix_ingest_retriever_bugs.sh
+# ============================================================
+set -e
+
+if [ ! -f pyproject.toml ]; then
+  echo "ERRO: rode este script dentro de ~/sap-integration-copilot"
+  exit 1
+fi
+
+echo "=== 1/3 - Reescrevendo app/rag/ingest.py (fix duplo) ==="
+cat > app/rag/ingest.py << 'INGESTEOF'
 """Ingestao de documentos no Qdrant, com duas fontes/collections
 separadas (incidents / reference).
 
@@ -89,9 +112,7 @@ def load_state(state_file: Path) -> set[str]:
 
 def save_state(state_file: Path, processed: set[str]) -> None:
     state_file.parent.mkdir(parents=True, exist_ok=True)
-    state_file.write_text(
-        json.dumps(sorted(processed), ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    state_file.write_text(json.dumps(sorted(processed), ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def extract_text(path: Path) -> str:
@@ -161,9 +182,7 @@ def run_ingest(target: str, limit: int | None, excludes: list[str], reset: bool)
         return
 
     embeddings = OllamaEmbeddings(model=EMBEDDING_MODEL)
-    splitter = MarkdownTextSplitter(
-        chunk_size=cfg["chunk_size"], chunk_overlap=cfg["chunk_overlap"]
-    )
+    splitter = MarkdownTextSplitter(chunk_size=cfg["chunk_size"], chunk_overlap=cfg["chunk_overlap"])
     client = QdrantClient(url=QDRANT_URL)
 
     # Collection garantida UMA VEZ por execucao - nao mais dentro do
@@ -196,21 +215,9 @@ def run_ingest(target: str, limit: int | None, excludes: list[str], reset: bool)
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--target", choices=["incidents", "reference", "all"], default="incidents")
-    parser.add_argument(
-        "--limit",
-        type=int,
-        default=None,
-        help="Processar so os N primeiros arquivos pendentes (teste)",
-    )
-    parser.add_argument(
-        "--exclude",
-        action="append",
-        default=[],
-        help="Substring de caminho a excluir (pode repetir)",
-    )
-    parser.add_argument(
-        "--reset", action="store_true", help="Ignora estado salvo e reprocessa tudo"
-    )
+    parser.add_argument("--limit", type=int, default=None, help="Processar so os N primeiros arquivos pendentes (teste)")
+    parser.add_argument("--exclude", action="append", default=[], help="Substring de caminho a excluir (pode repetir)")
+    parser.add_argument("--reset", action="store_true", help="Ignora estado salvo e reprocessa tudo")
     args = parser.parse_args()
 
     targets = ["incidents", "reference"] if args.target == "all" else [args.target]
@@ -220,3 +227,171 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+INGESTEOF
+
+echo "=== 2/3 - Reescrevendo app/rag/retriever.py (singletons + score_threshold) ==="
+cat > app/rag/retriever.py << 'RETRIEVEREOF'
+"""Consulta (retrieval) nas bases de conhecimento indexadas no Qdrant.
+
+Correcoes aplicadas apos code review:
+  - QdrantClient e OllamaEmbeddings sao singletons (via lru_cache),
+    nao recriados a cada chamada de retrieve() - evita descartar
+    reuso de conexao HTTP a cada request
+  - score_threshold filtra resultados de baixa relevancia na propria
+    query ao Qdrant (nao em Python depois) - sem isso, top_k sempre
+    retornava 3 resultados mesmo quando nenhum era realmente relevante,
+    e o LLM tentava construir uma causa raiz em cima de contexto fraco
+
+Duas collections independentes:
+  sap_incident_docs      -> usada pelo fluxo de diagnostico do Copilot
+  sap_reference_library  -> usada so para estudo/consulta pessoal
+"""
+
+from functools import lru_cache
+
+from langchain_ollama import OllamaEmbeddings
+from qdrant_client import QdrantClient
+
+from app.config import settings
+
+EMBEDDING_MODEL = settings.embedding_model
+QDRANT_URL = settings.qdrant_url
+
+# Valor inicial conservador - abaixo de todos os scores de match
+# correto observados ate hoje (0.55-0.90), mas acima do que se espera
+# de ruido puro. Deve ser recalibrado com mais dado real ao longo do
+# tempo, nao e um numero definitivo.
+DEFAULT_SCORE_THRESHOLD = 0.5
+
+COLLECTIONS = {
+    "incidents": "sap_incident_docs",
+    "reference": "sap_reference_library",
+}
+
+
+@lru_cache(maxsize=1)
+def _get_qdrant_client() -> QdrantClient:
+    return QdrantClient(url=QDRANT_URL)
+
+
+@lru_cache(maxsize=1)
+def _get_embeddings() -> OllamaEmbeddings:
+    return OllamaEmbeddings(model=EMBEDDING_MODEL)
+
+
+def retrieve(
+    query: str,
+    target: str = "incidents",
+    top_k: int = 3,
+    score_threshold: float = DEFAULT_SCORE_THRESHOLD,
+) -> list[dict]:
+    """Retorna ate top_k chunks mais relevantes para a query, na
+    collection correspondente a `target`, descartando resultados
+    abaixo de score_threshold. Pode retornar lista vazia se nada
+    passar do limiar - isso e intencional, nao um bug.
+    """
+    collection_name = COLLECTIONS[target]
+
+    embeddings = _get_embeddings()
+    query_vector = embeddings.embed_query(query)
+
+    client = _get_qdrant_client()
+    results = client.query_points(
+        collection_name=collection_name,
+        query=query_vector,
+        limit=top_k,
+        score_threshold=score_threshold,
+    ).points
+
+    return [
+        {
+            "source": hit.payload.get("source"),
+            "text": hit.payload.get("text"),
+            "score": hit.score,
+        }
+        for hit in results
+    ]
+
+
+if __name__ == "__main__":
+    import sys
+
+    target = "incidents"
+    args = sys.argv[1:]
+    if args and args[0] in ("incidents", "reference"):
+        target = args[0]
+        args = args[1:]
+
+    query = " ".join(args) or "iFlow falhando com timeout"
+    print(f"[{target}] Query: {query}\n")
+    hits = retrieve(query, target=target)
+    if not hits:
+        print(f"(nenhum resultado acima do score_threshold={DEFAULT_SCORE_THRESHOLD})")
+    for i, hit in enumerate(hits, start=1):
+        print(f"--- resultado {i} (score={hit['score']:.4f}, fonte={hit['source']}) ---")
+        print(hit["text"][:300])
+        print()
+RETRIEVEREOF
+
+echo "=== 3/3 - Estendendo guardrail no graph.py para contexto vazio ==="
+python3 - << 'PYEOF'
+from pathlib import Path
+
+path = Path("app/agent/graph.py")
+lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+
+marker = "    data = state.get(\"connector_data\")\n"
+target_idx = None
+for i, line in enumerate(lines):
+    if line == marker and "capped" in "".join(lines[i : i + 8]):
+        target_idx = i
+        break
+
+if target_idx is None:
+    print("AVISO: bloco do guardrail nao encontrado - verifique manualmente.")
+else:
+    extra = (
+        "\n"
+        "    # Guardrail adicional: se o retriever nao encontrou NENHUM\n"
+        "    # documento acima do score_threshold (contexto vazio) e nao\n"
+        "    # ha dado de conector, tambem nao ha base solida - mesmo\n"
+        "    # raciocinio do guardrail de fallback, aplicado aqui.\n"
+        "    if not state.get(\"retrieved_context\") and not data:\n"
+        "        original_confidence = float(diagnosis.get(\"confidence\", 0.0))\n"
+        "        capped = min(original_confidence, 0.3)\n"
+        "        if capped < original_confidence:\n"
+        "            diagnosis[\"confidence\"] = capped\n"
+        "            diagnosis[\"matched_source\"] = None\n"
+        "            diagnosis[\"probable_root_cause\"] = (\n"
+        "                \"[confianca limitada - nenhum documento relevante encontrado] \"\n"
+        "                f\"{diagnosis.get('probable_root_cause', '')}\"\n"
+        "            )\n"
+    )
+    # insere logo apos o bloco existente de guardrail do conector
+    insert_at = target_idx
+    while not lines[insert_at].strip().startswith("return {\"diagnosis\": diagnosis}"):
+        insert_at += 1
+    lines.insert(insert_at, extra)
+    Path("app/agent/graph.py").write_text("".join(lines), encoding="utf-8")
+    print("Guardrail de contexto vazio adicionado.")
+PYEOF
+
+echo "=== Sync + lint ==="
+uv sync
+uv run ruff check --fix app/rag/ingest.py app/rag/retriever.py app/agent/graph.py
+uv run ruff format app/rag/ingest.py app/rag/retriever.py app/agent/graph.py
+
+echo
+echo "============================================================"
+echo "Correcoes aplicadas. Como o score_threshold e novo, o dataset"
+echo "atual precisa ser REINDEXADO (o filtro so se aplica na consulta,"
+echo "os pontos ja gravados continuam validos, mas confirme com um"
+echo "teste completo):"
+echo
+echo "  uv run pytest -v"
+echo
+echo "Se algum teste falhar por causa do score_threshold cortando um"
+echo "resultado que antes passava, ajuste DEFAULT_SCORE_THRESHOLD em"
+echo "app/rag/retriever.py (hoje em 0.5) com base no que o teste"
+echo "reportar como score real."
+echo "============================================================"
